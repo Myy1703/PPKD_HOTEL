@@ -91,8 +91,8 @@ export default function RegistrationForm() {
     
     try {
       const endpoint = isEditMode 
-        ? `http://127.0.0.1:5000/api/guests/${editData.id}` 
-        : 'http://127.0.0.1:5000/api/guests'
+        ? `/api/guests/${editData.id}` 
+        : '/api/guests'
         
       const method = isEditMode ? 'PUT' : 'POST'
 
@@ -118,7 +118,7 @@ export default function RegistrationForm() {
     } catch (err) {
       console.error("Gagal menyimpan ke database:", err)
       setErrorMsg(err.message)
-      alert("Gagal menyimpan ke database: " + err.message + "\n\nPastikan backend server port 5000 sudah menyala.")
+      alert("Gagal menyimpan ke database: " + err.message + "\n\nPastikan backend server sudah menyala.")
     } finally {
       setLoading(false)
     }

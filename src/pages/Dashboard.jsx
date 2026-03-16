@@ -22,7 +22,7 @@ export default function Dashboard() {
 
   const fetchGuests = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/guests')
+      const res = await fetch('/api/guests')
       const result = await res.json()
       if (res.ok) {
         setGuests(result.data || [])
@@ -41,7 +41,7 @@ export default function Dashboard() {
   const handleDelete = async (id, nama) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus data tamu ${nama}?`)) {
       try {
-        const res = await fetch(`http://127.0.0.1:5000/api/guests/${id}`, { method: 'DELETE' })
+        const res = await fetch(`/api/guests/${id}`, { method: 'DELETE' })
         if (res.ok) {
           fetchGuests() // Refresh data
         } else {
