@@ -1,6 +1,11 @@
 const express = require('express');
 const cors = require('cors');
-const db = require('../server/database');
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase client for Serverless Function
+const supabaseUrl = process.env.VITE_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const app = express();
 
@@ -10,105 +15,70 @@ app.use(express.json());
 
 // Main Route
 app.get('/api', (req, res) => {
-  res.json({ message: 'PPKD Hotel Backend Server is running on Vercel!' });
+  res.json({ message: 'PPKD Hotel Backend Server is running on Vercel with Supabase!' });
 });
 
-// API Routes (copied from server.js)
-app.post('/api/login', (req, res) => {
+// API Route - Login
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  const sql = 'SELECT id, username, role FROM users WHERE username = ? AND password = ?';
-  db.get(sql, [username, password], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (row) {
-      res.json({ message: 'Login successful', user: row });
-    } else {
-      res.status(401).json({ error: 'Invalid username or password' });
-    }
-  });
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, username, role')
+    .eq('username', username)
+    .eq('password', password)
+    .single();
+
+  if (error) return res.status(error.code === 'PGRST116' ? 401 : 500).json({ error: error.message });
+  res.json({ message: 'Login successful', user: data });
 });
 
-app.get('/api/guests', (req, res) => {
-  const sql = 'SELECT * FROM guests ORDER BY created_at DESC';
-  db.all(sql, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'success', data: rows });
-  });
+// API Route - Get all guests
+app.get('/api/guests', async (req, res) => {
+  const { data, error } = await supabase
+    .from('guests')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: 'success', data: data });
 });
 
-app.post('/api/guests', (req, res) => {
-  const {
-    roomNo1, roomNo2, jumlahTamu, jumlahKamar, jenisKamar, receptionist,
-    nama, pekerjaan, perusahaan, kebangsaan, noKtp, tanggalLahir,
-    alamat, telepon, email, waktuKedatangan, tanggalKedatangan,
-    tanggalKeberangkatan, noMember, safetyDepositBox, dikeluarkanOleh, tanggal,
-    metodePembayaran, cardNumber, cardHolderName, cardType, expiredDate, 
-    bankTransferTo, mandiriAccount, mandiriNameAccount
-  } = req.body;
+// API Route - Create new guest
+app.post('/api/guests', async (req, res) => {
+  const { data, error } = await supabase
+    .from('guests')
+    .insert([req.body])
+    .select()
+    .single();
 
-  const sql = `INSERT INTO guests (
-    roomNo1, roomNo2, jumlahTamu, jumlahKamar, jenisKamar, receptionist,
-    nama, pekerjaan, perusahaan, kebangsaan, noKtp, tanggalLahir,
-    alamat, telepon, email, waktuKedatangan, tanggalKedatangan,
-    tanggalKeberangkatan, noMember, safetyDepositBox, dikeluarkanOleh, tanggal, metodePembayaran,
-    cardNumber, cardHolderName, cardType, expiredDate, bankTransferTo, mandiriAccount, mandiriNameAccount
-  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
-  
-  const params = [
-    roomNo1, roomNo2, jumlahTamu, jumlahKamar, jenisKamar, receptionist,
-    nama, pekerjaan, perusahaan, kebangsaan, noKtp, tanggalLahir,
-    alamat, telepon, email, waktuKedatangan, tanggalKedatangan,
-    tanggalKeberangkatan, noMember, safetyDepositBox, dikeluarkanOleh, tanggal, metodePembayaran,
-    cardNumber, cardHolderName, cardType, expiredDate, bankTransferTo, mandiriAccount, mandiriNameAccount
-  ];
-
-  db.run(sql, params, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.status(201).json({ message: 'success', data: { id: this.lastID, ...req.body } });
-  });
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json({ message: 'success', data: data });
 });
 
-app.delete('/api/guests/:id', (req, res) => {
+// API Route - Delete guest
+app.delete('/api/guests/:id', async (req, res) => {
   const { id } = req.params;
-  const sql = 'DELETE FROM guests WHERE id = ?';
-  db.run(sql, id, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'deleted', changes: this.changes });
-  });
+  const { error } = await supabase
+    .from('guests')
+    .delete()
+    .eq('id', id);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: 'deleted' });
 });
 
-app.put('/api/guests/:id', (req, res) => {
+// API Route - Update guest
+app.put('/api/guests/:id', async (req, res) => {
   const { id } = req.params;
-  const {
-    roomNo1, roomNo2, jumlahTamu, jumlahKamar, jenisKamar, receptionist,
-    nama, pekerjaan, perusahaan, kebangsaan, noKtp, tanggalLahir,
-    alamat, telepon, email, waktuKedatangan, tanggalKedatangan,
-    tanggalKeberangkatan, noMember, safetyDepositBox, dikeluarkanOleh, tanggal,
-    metodePembayaran, cardNumber, cardHolderName, cardType, expiredDate, 
-    bankTransferTo, mandiriAccount, mandiriNameAccount
-  } = req.body;
+  const { data, error } = await supabase
+    .from('guests')
+    .update(req.body)
+    .eq('id', id)
+    .select()
+    .single();
 
-  const sql = `UPDATE guests SET 
-    roomNo1=?, roomNo2=?, jumlahTamu=?, jumlahKamar=?, jenisKamar=?, receptionist=?,
-    nama=?, pekerjaan=?, perusahaan=?, kebangsaan=?, noKtp=?, tanggalLahir=?,
-    alamat=?, telepon=?, email=?, waktuKedatangan=?, tanggalKedatangan=?,
-    tanggalKeberangkatan=?, noMember=?, safetyDepositBox=?, dikeluarkanOleh=?, tanggal=?,
-    metodePembayaran=?, cardNumber=?, cardHolderName=?, cardType=?, expiredDate=?, 
-    bankTransferTo=?, mandiriAccount=?, mandiriNameAccount=?
-  WHERE id=?`;
-  
-  const params = [
-    roomNo1, roomNo2, jumlahTamu, jumlahKamar, jenisKamar, receptionist,
-    nama, pekerjaan, perusahaan, kebangsaan, noKtp, tanggalLahir,
-    alamat, telepon, email, waktuKedatangan, tanggalKedatangan,
-    tanggalKeberangkatan, noMember, safetyDepositBox, dikeluarkanOleh, tanggal,
-    metodePembayaran, cardNumber, cardHolderName, cardType, expiredDate, 
-    bankTransferTo, mandiriAccount, mandiriNameAccount, id
-  ];
-
-  db.run(sql, params, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'updated', changes: this.changes, data: { id, ...req.body } });
-  });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: 'updated', data: data });
 });
 
 module.exports = app;
